@@ -7,7 +7,64 @@
 
 void calc(double* arr, uint32_t ySize, uint32_t xSize, int rank, int size)
 {
-  if (rank == 0 && size > 0)
+        // true dependence (4, 0)
+        // sending array's size
+        MPI_Bcast(&ySize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&xSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+        if (rank != 0)
+                arr = (double *) calloc (xSize * ySize, sizeof (double));
+        MPI_Bcast (arr, xSize * ySize, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+        double* arr_new = (double *) calloc (xSize * ySize, sizeof (double));
+        uint32_t x_size_part = xSize / size;
+
+        for (uint32_t y = 0; y < 4; y++)
+        {
+                for (uint32_t x = x_size_part * rank; x < x_size_part * (rank + 1); x++)
+                {
+                        arr_new[y*xSize + x] = arr[y*xSize + x];
+                }
+        }
+
+        if (rank == size - 1)
+        {
+                for (uint32_t y = 0; y < 4; y++)
+                {
+                        for (uint32_t x = x_size_part * (rank + 1); x < xSize; x++)
+                        {
+                                arr_new[y*xSize + x] = arr[y*xSize + x];
+                        }
+                }
+        }
+
+        for (uint32_t y = 4; y < ySize; y++)
+        {
+                for (uint32_t x = x_size_part * rank; x < x_size_part * (rank + 1); x++)
+                {
+                        arr_new[y*xSize + x] = sin(arr_new[(y - 4)*xSize + x]);
+                }
+        }
+
+        if (rank == size - 1)
+        {
+                for (uint32_t y = 4; y < ySize; y++)
+                {
+                        for (uint32_t x = x_size_part * (rank + 1); x < xSize; x++)
+                        {
+                                arr_new[y*xSize + x] = sin(arr_new[(y - 4)*xSize + x]);
+                        }
+                }
+        }
+        MPI_Reduce (arr_new, arr, xSize * ySize, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+        if(rank)
+                free(arr);
+        free(arr_new);
+
+
+/*
+ if (rank == 0 && size > 0)
   {
     for (uint32_t y = 4; y < ySize; y++)
     {
@@ -17,6 +74,8 @@ void calc(double* arr, uint32_t ySize, uint32_t xSize, int rank, int size)
       }
     }
   }
+*/
+
 }
 
 int main(int argc, char** argv)

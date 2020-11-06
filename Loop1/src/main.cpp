@@ -7,7 +7,7 @@
 
 void calc(double* arr, uint32_t ySize, uint32_t xSize, int rank, int size)
 {
-        // sending array's size
+        // sending array's sizes
         MPI_Bcast(&ySize, 1, MPI_INT, 0, MPI_COMM_WORLD);
         MPI_Bcast(&xSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
 

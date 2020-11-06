@@ -7,6 +7,45 @@
 
 void calc(double* arr, uint32_t ySize, uint32_t xSize, int rank, int size)
 {
+        // anti-dependence in this task
+        // sending array's sizes
+        MPI_Bcast(&ySize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&xSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+        // sending array from 0 to others
+        if (rank != 0)
+                arr = (double *) calloc (xSize * ySize, sizeof (double));
+        MPI_Bcast (arr, xSize * ySize, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        // tmp array for calculations
+        double* arr_new     = (double *) calloc (xSize * ySize, sizeof (double));
+
+        uint32_t size_part = xSize * ySize / size;
+        // copying not changing array's vlues
+        if(rank == 0)
+        {
+                for (uint32_t i = 0; i < xSize * ySize; i++)
+                        if ( ((i % xSize) < 3) || ((i / xSize) >= (ySize - 1)) )
+                                arr_new[i] = arr[i];
+        }
+        // calculating
+        for (uint32_t i = size_part * rank; i < size_part * (rank + 1); i++)
+                if ( ((i % xSize) >= 3) && ((i / xSize) < (ySize - 1)) )
+                        arr_new[i] = sin(0.00001*arr[i + xSize - 3]);
+        // last process calculates rest of data
+        if (rank == size - 1)
+        {
+                for (uint32_t i = size_part * (rank + 1); i < xSize * ySize; i++)
+                        if ( ((i % xSize) >= 3) && ((i / xSize) < (ySize - 1)) )
+                                arr_new[i] = sin(0.00001*arr[i + xSize - 3]);
+        }
+        // gathering data
+        MPI_Reduce (arr_new, arr, xSize * ySize, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        // free memory
+        if(rank)
+                free(arr);
+        free(arr_new);
+
+        /*
   if (rank == 0 && size > 0)
   {
     for (uint32_t y = 0; y < ySize - 1; y++)
@@ -17,6 +56,8 @@ void calc(double* arr, uint32_t ySize, uint32_t xSize, int rank, int size)
       }
     }
   }
+        */
+
 }
 
 int main(int argc, char** argv)
