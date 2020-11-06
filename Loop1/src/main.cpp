@@ -7,16 +7,30 @@
 
 void calc(double* arr, uint32_t ySize, uint32_t xSize, int rank, int size)
 {
-  if (rank == 0 && size > 0)
-  {
-    for (uint32_t y = 0; y < ySize; y++)
-    {
-      for (uint32_t x = 0; x < xSize; x++)
-      {
-        arr[y*xSize + x] = sin(0.00001*arr[y*xSize + x]);
-      }
-    }
-  }
+        // sending array's size
+        MPI_Bcast(&ySize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&xSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+        // dividing array into pieces
+        int arr_size      = xSize * ySize;
+        int arr_part_size = arr_size/size;
+        double*  arr_part = (double *)malloc(arr_part_size * sizeof(double));
+        MPI_Scatter(arr, arr_part_size, MPI_DOUBLE, arr_part, arr_part_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+        // calculating
+        for(int i = 0; i < arr_part_size; i++)
+                arr_part[i] = sin(0.00001 * arr_part[i]);
+
+        // gathering pieces
+        MPI_Gather(arr_part, arr_part_size, MPI_DOUBLE, arr, arr_part_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+        // calculating the rest of input array
+        if (rank == 0)
+                for(int i = arr_part_size * size; i < arr_size; i++)
+                        arr[i] = sin(0.00001 * arr[i]);
+
+        // free memory
+        free(arr_part);
 }
 
 int main(int argc, char** argv)
